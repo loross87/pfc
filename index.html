@@ -150,8 +150,10 @@ main { flex: 1; padding: 16px; overflow-y: auto; }
   margin-top: 12px;
   overflow: hidden;
   position: relative;
+  width: 100%;
+  min-height: 220px;
 }
-canvas { display: block; width: 100%; }
+canvas { display: block; width: 100%; height: 100%; }
 .badge {
   display: inline-block;
   padding: 4px 10px;
@@ -302,11 +304,11 @@ canvas { display: block; width: 100%; }
     </div>
     <div class="card">
       <div class="card-title">📉 Bode Loop Aperto - Corrente</div>
-      <div class="canvas-container"><canvas id="bodeI" height="280"></canvas></div>
+      <div class="canvas-container" id="containerBodeI"><canvas id="bodeI" height="280"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">📈 Risposta al Gradino - Loop Chiuso</div>
-      <div class="canvas-container"><canvas id="stepI" height="220"></canvas></div>
+      <div class="canvas-container" id="containerStepI"><canvas id="stepI" height="220"></canvas></div>
     </div>
   </div>
 
@@ -329,11 +331,11 @@ canvas { display: block; width: 100%; }
     </div>
     <div class="card">
       <div class="card-title">📉 Bode Loop Aperto - Tensione</div>
-      <div class="canvas-container"><canvas id="bodeV" height="280"></canvas></div>
+      <div class="canvas-container" id="containerBodeV"><canvas id="bodeV" height="280"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">📈 Risposta al Gradino - Loop Chiuso</div>
-      <div class="canvas-container"><canvas id="stepV" height="220"></canvas></div>
+      <div class="canvas-container" id="containerStepV"><canvas id="stepV" height="220"></canvas></div>
     </div>
   </div>
 
@@ -397,14 +399,16 @@ function installApp() {
   }
 }
 
+let currentTab = 'system';
 function switchTab(name) {
+  currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
-  if (name === 'current') updateCurrentLoop();
-  if (name === 'voltage') updateVoltageLoop();
-  if (name === 'summary') updateSummary();
+  if (name === 'current') { updateCurrentLoop(); }
+  if (name === 'voltage') { updateVoltageLoop(); }
+  if (name === 'summary') { updateSummary(); }
 }
 
 function computeSystem() {
@@ -456,15 +460,25 @@ function evalTF(num, den, s) {
   return cDiv(n, d);
 }
 
+function getCanvasWidth(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const container = canvas.parentElement;
+  const rect = container.getBoundingClientRect();
+  return Math.max(rect.width, window.innerWidth - 64);
+}
+
 function drawBode(canvasId, freqs, mags, phases) {
   const canvas = document.getElementById(canvasId);
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  const wCanvas = getCanvasWidth(canvasId);
+  const hCanvas = parseInt(canvas.getAttribute('height')) || 280;
+  canvas.width = wCanvas * dpr;
+  canvas.height = hCanvas * dpr;
+  canvas.style.width = wCanvas + 'px';
+  canvas.style.height = hCanvas + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const w = rect.width, h = rect.height;
+  const w = wCanvas, h = hCanvas;
   const pad = { top: 30, right: 10, bottom: 30, left: 45 };
 
   ctx.clearRect(0, 0, w, h);
@@ -545,12 +559,15 @@ function drawBode(canvasId, freqs, mags, phases) {
 function drawStep(canvasId, times, values, settlingLine) {
   const canvas = document.getElementById(canvasId);
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  const wCanvas = getCanvasWidth(canvasId);
+  const hCanvas = parseInt(canvas.getAttribute('height')) || 220;
+  canvas.width = wCanvas * dpr;
+  canvas.height = hCanvas * dpr;
+  canvas.style.width = wCanvas + 'px';
+  canvas.style.height = hCanvas + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const w = rect.width, h = rect.height;
+  const w = wCanvas, h = hCanvas;
   const pad = { top: 20, right: 15, bottom: 30, left: 45 };
 
   ctx.clearRect(0, 0, w, h);
@@ -802,9 +819,17 @@ function exportParams() {
   URL.revokeObjectURL(url);
 }
 
+// Resize handler for canvas
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (currentTab === 'current') { updateCurrentLoop(); }
+    if (currentTab === 'voltage') { updateVoltageLoop(); }
+  }, 200);
+});
+
 computeSystem();
-updateCurrentLoop();
-updateVoltageLoop();
 </script>
 </body>
 </html>
